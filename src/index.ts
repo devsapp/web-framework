@@ -16,6 +16,7 @@ import ToFc from './lib/transform/to-fc';
 import ToBuild from './lib/transform/to-build';
 import ToInfo from './lib/transform/to-info';
 
+import FcEndpoint from './lib/fc-endpoint';
 import GenerateDockerfile from './lib/generate-dockerfile';
 import ProviderFactory from './lib/providers/factory';
 import NasComponent from './lib/nas';
@@ -268,7 +269,8 @@ export default class Component {
   }
 
   private async getCredentials(credentials: ICredentials, access: string) {
-
+    await FcEndpoint.getFcEndpoint();
+    logger.debug(`fc endpoint: ${FcEndpoint.endpoint}`);
     return _.isEmpty(credentials) ? await getCredential(access) : credentials;
   }
 

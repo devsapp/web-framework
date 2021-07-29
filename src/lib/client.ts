@@ -1,6 +1,7 @@
 import FC from '@alicloud/fc2';
 import Pop from '@alicloud/pop-core';
 import { ICredentials } from '../interface/inputs';
+import FcEndpoint from './fc-endpoint';
 
 export default class Component {
   static fc(region: string, profile: ICredentials) {
@@ -13,7 +14,7 @@ export default class Component {
       accessKeyID: profile.AccessKeyID,
       accessKeySecret: profile.AccessKeySecret,
       securityToken: profile.SecurityToken,
-      endpoint: `https://${profile.AccountID}.${region}.fc.aliyuncs.com`,
+      endpoint: FcEndpoint.endpoint || `https://${profile.AccountID}.${region}.fc.aliyuncs.com`,
       timeout: 6000000,
     });
   }
