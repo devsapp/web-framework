@@ -15,6 +15,42 @@ export default class AliCloud extends CloudProvider {
     this.namespace = this.inputs.appName.toLowerCase();
   }
 
+  async login() {
+    const tempLoginInfo = await this.getTempLoginUserInfo();
+    if (tempLoginInfo.data) {
+      const region = this.inputs.props.region || 'cn-hangzhou';
+      const { tempUserName, authorizationToken } = tempLoginInfo.data;
+      await this.executeLoginCommand(tempUserName, authorizationToken, region);
+    }
+  }
+
+  async publish(buildImg: string, qualifier?: string): Promise<string> {
+    const namespaceData = await this.getNameSpace();
+    const { namespaces } = namespaceData.data;
+    const namespaceNameList: any[] = namespaces.map((data) => data.namespace);
+    if (!namespaceNameList.includes(this.namespace)) {
+      // 这里容易会触发一个问题，容器镜像服务命名空间仅能创建三个
+      await this.createNameSpace(this.namespace).catch((e) => Logger.error(e));
+    }
+    await this.updateNamespace(this.namespace).catch((e) => Logger.error(e));
+
+    const properties = this.inputs.props;
+    const serviceName = properties.service.name;
+    const functionName = properties.function?.name || serviceName;
+    const projectName = `${serviceName}.${functionName}`.toLowerCase();
+
+    const repoResult = await this.getRepos().catch((e) => Logger.error(e));
+    const repos: any[] = repoResult.data.repos.map((item) => item.repoName);
+    if (!repos.includes(projectName)) {
+      await this.createRepo(projectName).catch((e) => Logger.error(e));
+    }
+    const region = this.inputs.props.region || 'cn-hangzhou';
+    const imgversion = await this.executeTagCommand(region, projectName, buildImg, qualifier);
+    await this.executePublishCommand(region, projectName, imgversion);
+    const imageUrl = `registry.${region}.aliyuncs.com/${this.namespace}/${projectName}:${imgversion}`;
+    return imageUrl;
+  }
+
   private async requestApi(path, method = 'GET', body = '{}', option = {}) {
     const httpMethod = method;
     const uriPath = path;
@@ -120,41 +156,5 @@ export default class AliCloud extends CloudProvider {
 
   private async getRepos() {
     return this.requestApi('/repos');
-  }
-
-  async login() {
-    const tempLoginInfo = await this.getTempLoginUserInfo();
-    if (tempLoginInfo.data) {
-      const region = this.inputs.props.region || 'cn-hangzhou';
-      const { tempUserName, authorizationToken } = tempLoginInfo.data;
-      await this.executeLoginCommand(tempUserName, authorizationToken, region);
-    }
-  }
-
-  async publish(buildImg: string, qualifier?: string): Promise<string> {
-    const namespaceData = await this.getNameSpace();
-    const { namespaces } = namespaceData.data;
-    const namespaceNameList: any[] = namespaces.map((data) => data.namespace);
-    if (!namespaceNameList.includes(this.namespace)) {
-      // 这里容易会触发一个问题，容器镜像服务命名空间仅能创建三个
-      await this.createNameSpace(this.namespace).catch((e) => Logger.error(e));
-    }
-    await this.updateNamespace(this.namespace).catch((e) => Logger.error(e));
-    
-    const properties = this.inputs.props;
-    const serviceName = properties.service.name;
-    const functionName = properties.function?.name || serviceName;
-    const projectName = `${serviceName}.${functionName}`.toLowerCase();
-
-    const repoResult = await this.getRepos().catch((e) => Logger.error(e));
-    const repos: any[] = repoResult.data.repos.map((item) => item.repoName);
-    if (!repos.includes(projectName)) {
-      await this.createRepo(projectName).catch((e) => Logger.error(e));
-    }
-    const region = this.inputs.props.region || 'cn-hangzhou';
-    const imgversion = await this.executeTagCommand(region, projectName, buildImg, qualifier);
-    await this.executePublishCommand(region, projectName, imgversion);
-    const imageUrl = `registry.${region}.aliyuncs.com/${this.namespace}/${projectName}:${imgversion}`;
-    return imageUrl;
   }
 }

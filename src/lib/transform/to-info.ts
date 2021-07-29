@@ -5,13 +5,13 @@ export default class Component {
     inputs.project.component = 'fc-info';
 
     // @ts-ignore
-    const {region, service, function: functionConfig, trigger} = inputs.props;
+    const { region, service, function: functionConfig, trigger } = inputs.props;
 
     const serviceName = service.name;
     const functionName = functionConfig.name || serviceName;
 
 
-    const triggerNames = trigger && trigger.name ? [trigger.name] : [serviceName]
+    const triggerNames = trigger && trigger.name ? [trigger.name] : [serviceName];
 
     return {
       ...inputs,
@@ -19,9 +19,8 @@ export default class Component {
         region,
         serviceName,
         functionName,
-        triggerNames: triggerNames
-      }
-    }
-
+        triggerNames,
+      },
+    };
   }
 }

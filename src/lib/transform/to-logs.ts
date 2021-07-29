@@ -1,5 +1,4 @@
 import * as Interface from '../../interface/inputs';
-import _ from 'lodash';
 import { IInputs } from '../../interface/inputs';
 import { getAutoName } from '../../constant';
 import { getLogConfig } from '../utils';
@@ -23,7 +22,7 @@ export default class Component {
         topic,
         query,
         logConfig: getLogConfig(service.logConfig, autoName),
-      }
+      },
     };
   }
 }

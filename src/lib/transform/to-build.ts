@@ -1,5 +1,5 @@
 export default class ToBuild {
-  static transfromInputs ({ runtime, region, service, function: functionConfig }) {
+  static transfromInputs({ runtime, region, service, function: functionConfig }) {
     return {
       region,
       service: {
@@ -12,7 +12,7 @@ export default class ToBuild {
         handler: functionConfig.handler || 'index.handler',
         initializationTimeout: functionConfig.initializationTimeout || 3,
         initializer: functionConfig.initializer,
-      }
+      },
     };
   }
 }

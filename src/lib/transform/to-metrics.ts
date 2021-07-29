@@ -14,8 +14,8 @@ export default class Component {
       props: {
         region,
         serviceName,
-        functionName
-      }
+        functionName,
+      },
     };
   }
 }

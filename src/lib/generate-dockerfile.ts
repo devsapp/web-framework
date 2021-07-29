@@ -11,7 +11,7 @@ export default async function (inputs, qualifier) {
   const {
     customContainerConfig,
     code,
-    name: functionName = serviceName
+    name: functionName = serviceName,
   } = properties.function;
   /*
   创建镜像过程
@@ -42,19 +42,19 @@ WORKDIR /code/${functionName}`);
 
   const projectName = `${serviceName}.${functionName}`.toLowerCase();
   if (projectName.length > 64) {
-    throw new Error(`[${projectName}] The length is greater than 64, it is recommended to reduce the length of the service or function name.`)
+    throw new Error(`[${projectName}] The length is greater than 64, it is recommended to reduce the length of the service or function name.`);
   }
 
   const imageId = `${inputs.appName.toLowerCase()}/${projectName}:${qualifier}`;
   const command = `docker build -t ${imageId} -f ${dockerPath} . `;
-  
+
   const stdio = isDebug ? 'inherit' : 'ignore';
   const vm = isDebug ? undefined : spinner(`Run: ${command}`);
 
   const { status } = spawnSync(command, [], {
     stdio,
     cwd: './',
-    shell: true
+    shell: true,
   });
 
   if (deleteIgnore) {

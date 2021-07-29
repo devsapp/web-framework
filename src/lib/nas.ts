@@ -12,7 +12,6 @@ interface ISrc {
 }
 
 export default class Component {
-
   static async getSrc(code: ISrc, serviceName: string, functionName: string): Promise<string> {
     const buildCodeUri = path.join(
       process.cwd(),
@@ -87,7 +86,7 @@ export default class Component {
   }
 
   static async transfromInputs(properties: IProperties, inputs: IInputs) {
-    const region = properties.region;
+    const { region } = properties;
     const serviceName = properties.service.name;
     const { excludes } = properties.function.code || {};
 
@@ -108,7 +107,7 @@ export default class Component {
       nas,
       inputs: {
         ...inputs,
-        props: nasProperties
+        props: nasProperties,
       },
     };
   }
@@ -146,7 +145,7 @@ export default class Component {
       role,
       userId,
       groupId,
-      mountPointDomain: mountPointDomain,
+      mountPointDomain,
       nasDir,
       excludes,
     };

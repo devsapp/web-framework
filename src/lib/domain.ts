@@ -7,26 +7,26 @@ import { isAuto } from './utils';
 interface IDomain {
   domainName: string;
   protocol: 'HTTP' | 'HTTP,HTTPS';
-  routeConfigs: {
+  routeConfigs: Array<{
     serviceName: string;
     functionName: string;
     qualifier: string;
     methods: string[];
     path: string;
-  }[];
+  }>;
 }
 
 
-async function readCertFile (filePath: string = '') {
+async function readCertFile(filePath = '') {
   if (await fse.pathExists(filePath)) {
     if (filePath.endsWith('.pom')) {
-      throw new Error(``);
+      throw new Error('');
     }
 
     const cert = await fse.readFile(filePath, 'utf-8');
-    
+
     if (cert.endsWith('\n')) {
-      return cert.slice(0, -2)
+      return cert.slice(0, -2);
     }
     return cert;
   }
@@ -67,7 +67,7 @@ export default class Component {
 
     let domain = '';
     const domainConfigs: IDomain[] = [];
-    
+
     for (const domainConfig of customDomains) {
       const { domainName, protocol, routeConfigs = [], certConfig } = domainConfig;
 
@@ -85,21 +85,21 @@ export default class Component {
         } else {
           this.logger.warn(`Multiple domainName: ${domain}`);
         }
-        
+
         domainConfigs.push({
           domainName: domain,
           protocol: 'HTTP',
-          routeConfigs: routeConfigs.map(item => ({
+          routeConfigs: routeConfigs.map((item) => ({
             serviceName,
             functionName,
             qualifier: 'LATEST',
             methods: ['GET', 'POST'],
             path: '/*',
-            ...item
+            ...item,
           })),
         });
       } else {
-        domainConfig.routeConfigs = routeConfigs.map(item => ({ serviceName, functionName, ...item }))
+        domainConfig.routeConfigs = routeConfigs.map((item) => ({ serviceName, functionName, ...item }));
         if (certConfig) {
           certConfig.certificate = await readCertFile(certConfig.certificate);
           certConfig.privateKey = await readCertFile(certConfig.privateKey);
@@ -125,7 +125,7 @@ export default class Component {
         region: inputs.props.region,
         service: serviceName,
         function: functionName,
-      }
+      },
     });
   }
 }

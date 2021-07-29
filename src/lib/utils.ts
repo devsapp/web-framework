@@ -59,7 +59,7 @@ export async function delFunctionInConfFile(
   targetFile: string,
   content: any,
   flags?: string,
-  mode?: number
+  mode?: number,
 ): Promise<boolean> {
   const { functionName } = content;
   const config = await fse.readJSON(targetFile);
@@ -106,8 +106,8 @@ export function getLogConfig(logConfig: 'auto' | 'Auto' | ILogConfig, autoName: 
   if (isAuto(logConfig)) {
     return {
       project: autoName.toLocaleLowerCase().replace(/_/g, '-'),
-      logstore: STORENAME
-    }
+      logstore: STORENAME,
+    };
   }
 
   if (logConfig?.project && logConfig?.logstore) {
@@ -119,25 +119,25 @@ export function getLogConfig(logConfig: 'auto' | 'Auto' | ILogConfig, autoName: 
 
 export async function requestDomains(domainName) {
   try {
-    Logger.debug(CONTEXT, `Request domains http://${domainName}`)
+    Logger.debug(CONTEXT, `Request domains http://${domainName}`);
     await axios.get(`http://${domainName}`, { timeout: 15 * 1000 });
-  } catch(ex) {
+  } catch (ex) {
     Logger.debug(CONTEXT, ex.toString());
   }
 }
 
 export async function getImageAndReport(inputs: IInputs, uid: string, command: string) {
   reportComponent(CONTEXT_NAME, { command, uid });
-  
+
   Logger.debug(CONTEXT, `get image customContainerConfig: ${JSON.stringify(inputs.props.function.customContainerConfig)}, runtime: ${inputs.props.runtime}, region: ${inputs.props.region}.`);
   if (!inputs.props.function.customContainerConfig?.image) {
     const { image } = await request('https://registry.devsapp.cn/registry/image', {
       method: 'post',
       body: {
         region: inputs.props.region,
-        runtime: inputs.props.runtime === 'php7.2' ? 'php7' : inputs.props.runtime
+        runtime: inputs.props.runtime === 'php7.2' ? 'php7' : inputs.props.runtime,
       },
-      form: true
+      form: true,
     });
     Logger.debug(CONTEXT, `auto image is ${image}.`);
     // @ts-ignore

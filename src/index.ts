@@ -1,3 +1,4 @@
+/* eslint-disable max-len */
 import {
   getCredential,
   help,
@@ -23,16 +24,6 @@ import Domain from './lib/domain';
 import logger from './common/logger';
 
 export default class Component {
-
-  private async getDeployType() {
-    const fcDefault = await loadComponent('devsapp/fc-default');
-    return await fcDefault.get({ args: "web-framework" });
-  }
-
-  private async getFc() {
-    return await loadComponent('devsapp/fc-deploy');
-  }
-
   async publish(inputs) {
     const apts = {
       boolean: ['help'],
@@ -50,7 +41,7 @@ export default class Component {
     const credentials: ICredentials = await getCredential(inputs.project.access);
     inputs.credentials = credentials;
 
-    const region = inputs.props.region;
+    const { region } = inputs.props;
     const serviceName = inputs.props.service.name;
 
     let nextQualifier;
@@ -72,7 +63,7 @@ export default class Component {
     const provider = ProviderFactory.getProvider(inputs);
     await provider.login();
     cloneInputs.props.function.customContainerConfig.image = await provider.publish(imageId, nextQualifier);
-    logger.debug(`custom container config image is ${cloneInputs.props.function.customContainerConfig.image}`)
+    logger.debug(`custom container config image is ${cloneInputs.props.function.customContainerConfig.image}`);
     cloneInputs.props.customDomains = await Domain.get(inputs);
     await (await this.getFc()).deploy(cloneInputs);
 
@@ -90,9 +81,9 @@ export default class Component {
     const credentials: ICredentials = await getCredential(inputs.project.access);
     inputs.credentials = credentials;
 
-    const region = inputs.props.region;
+    const { region } = inputs.props;
     const serviceName = inputs.props.service.name;
-    logger.info(`unpublish version ${region}/${serviceName}.${comParse.data?.version}`)
+    logger.info(`unpublish version ${region}/${serviceName}.${comParse.data?.version}`);
     return await Fc.deleteVersion(credentials, region, serviceName, comParse.data?.version);
   }
 
@@ -157,7 +148,7 @@ export default class Component {
       region: properties.region,
       serviceName: fcConfig.service.name,
       functionName: fcConfig.function.name,
-      customDomains: fcConfig.customDomains?.map(({ domainName }) => domainName)
+      customDomains: fcConfig.customDomains?.map(({ domainName }) => domainName),
     };
   }
 
@@ -184,7 +175,7 @@ export default class Component {
     logger.debug(`transfrom props: ${JSON.stringify(cloneInputs.props.customDomains)}`);
     cloneInputs.args = 'service';
 
-    const region = inputs.props.region;
+    const { region } = inputs.props;
     const serviceName = inputs.props.service.name;
     const versions = await Fc.listVersions(cloneInputs.credentials, region, serviceName);
     for (const { versionId } of versions) {
@@ -194,8 +185,8 @@ export default class Component {
         props: {
           region,
           service: { name: serviceName },
-        }
-      })
+        },
+      });
     }
 
     return (await this.getFc()).remove(cloneInputs);
@@ -243,7 +234,7 @@ export default class Component {
 
     const inputsInfo = await ToInfo.transform(_.cloneDeep(inputs));
     const info = await loadComponent('devsapp/fc-info');
-    return await info.info(inputsInfo)
+    return await info.info(inputsInfo);
   }
 
   async cp(inputs: IInputs) {
@@ -272,5 +263,14 @@ export default class Component {
     await getImageAndReport(inputs, credentials.AccountID, 'command');
 
     await NasComponent.command(inputs.props, _.cloneDeep(inputs));
+  }
+
+  private async getDeployType() {
+    const fcDefault = await loadComponent('devsapp/fc-default');
+    return await fcDefault.get({ args: 'web-framework' });
+  }
+
+  private async getFc() {
+    return await loadComponent('devsapp/fc-deploy');
   }
 }

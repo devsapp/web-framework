@@ -1,4 +1,3 @@
-import _ from 'lodash';
 import Client from './client';
 import logger from '../common/logger';
 

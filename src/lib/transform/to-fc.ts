@@ -24,13 +24,13 @@ export default class ToFc {
       throw new Error('service.name required.');
     }
     if (deployType === 'container') {
-      return { ...service }
+      return { ...service };
     } else {
       return {
         vpcConfig: 'auto',
         nasConfig: 'auto',
         ...service,
-      }
+      };
     }
   }
 
@@ -60,9 +60,9 @@ export default class ToFc {
         name: serviceName,
         type: 'http',
         config: HTTP_CONFIG,
-      }]
+      }];
     }
-    
+
     return [{
       name: serviceName,
       ...triggerConfig,
