@@ -3,8 +3,10 @@ export default class AliCloud extends CloudProvider {
     protected client: any;
     protected namespace: any;
     constructor(props: any);
-    private requestApi;
+    login(): Promise<void>;
+    publish(buildImg: string, qualifier?: string): Promise<string>;
     private createApiClient;
+    private requestApi;
     private getTempLoginUserInfo;
     private executeLoginCommand;
     private executeTagCommand;
@@ -14,6 +16,4 @@ export default class AliCloud extends CloudProvider {
     private updateNamespace;
     private createRepo;
     private getRepos;
-    login(): Promise<void>;
-    publish(buildImg: string, qualifier?: string): Promise<string>;
 }

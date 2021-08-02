@@ -22,7 +22,7 @@ var Component = /** @class */ (function () {
         return __assign(__assign({}, inputs), { props: {
                 region: region,
                 serviceName: serviceName,
-                functionName: functionName
+                functionName: functionName,
             } });
     };
     return Component;

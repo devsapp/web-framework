@@ -1,7 +1,5 @@
 import { IInputs } from './interface/inputs';
 export default class Component {
-    private getDeployType;
-    private getFc;
     publish(inputs: any): Promise<any>;
     unpublish(inputs: any): Promise<any>;
     deploy(inputs: any): Promise<{
@@ -19,4 +17,7 @@ export default class Component {
     ls(inputs: IInputs): Promise<void>;
     rm(inputs: IInputs): Promise<void>;
     command(inputs: IInputs): Promise<void>;
+    private getCredentials;
+    private getDeployType;
+    private getFc;
 }
