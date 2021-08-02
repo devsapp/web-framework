@@ -1,3 +1,4 @@
+/* eslint-disable no-await-in-loop */
 /* eslint-disable max-len */
 import {
   getCredential,
@@ -15,6 +16,7 @@ import ToFc from './lib/transform/to-fc';
 import ToBuild from './lib/transform/to-build';
 import ToInfo from './lib/transform/to-info';
 
+import FcEndpoint from './lib/fc-endpoint';
 import GenerateDockerfile from './lib/generate-dockerfile';
 import ProviderFactory from './lib/providers/factory';
 import NasComponent from './lib/nas';
@@ -38,7 +40,7 @@ export default class Component {
       throw new Error('The verison capability currently only supports container.');
     }
 
-    const credentials: ICredentials = await getCredential(inputs.project.access);
+    const credentials = await this.getCredentials(inputs.credentials, inputs.project?.access);
     inputs.credentials = credentials;
 
     const { region } = inputs.props;
@@ -78,7 +80,7 @@ export default class Component {
     };
     const comParse: any = commandParse({ args: inputs.args }, apts);
 
-    const credentials: ICredentials = await getCredential(inputs.project.access);
+    const credentials = await this.getCredentials(inputs.credentials, inputs.project?.access);
     inputs.credentials = credentials;
 
     const { region } = inputs.props;
@@ -98,7 +100,7 @@ export default class Component {
       return;
     }
 
-    const credentials: ICredentials = await getCredential(inputs.project.access);
+    const credentials = await this.getCredentials(inputs.credentials, inputs.project?.access);
     inputs.credentials = credentials;
 
     inputs = await getImageAndReport(inputs, credentials.AccountID, 'deploy');
@@ -165,7 +167,8 @@ export default class Component {
     const cloneInputs = _.cloneDeep(inputs);
     // @ts-ignore
     delete cloneInputs.Properties;
-    cloneInputs.credentials = await getCredential(inputs.project.access);
+
+    cloneInputs.credentials = await this.getCredentials(inputs.credentials, inputs.project?.access);
     await getImageAndReport(cloneInputs, cloneInputs.credentials.AccountID, 'build');
 
     const deployType = await this.getDeployType();
@@ -193,7 +196,7 @@ export default class Component {
   }
 
   async build(inputs) {
-    inputs.credentials = await getCredential(inputs.project.access);
+    inputs.credentials = await this.getCredentials(inputs.credentials, inputs.project?.access);
     await getImageAndReport(inputs, inputs.credentials.AccountID, 'build');
 
     const builds = await loadComponent('devsapp/fc-build');
@@ -208,7 +211,7 @@ export default class Component {
       throw new Error('To use this function, you need to configure the log function in the service, please refer to https://github.com/devsapp/web-framework/blob/master/readme.md#service');
     }
 
-    inputs.credentials = await getCredential(inputs.project.access);
+    inputs.credentials = await this.getCredentials(inputs.credentials, inputs.project?.access);
     await getImageAndReport(inputs, inputs.credentials.AccountID, 'logs');
 
     const inputsLogs = await ToLogs.transform(_.cloneDeep(inputs));
@@ -218,7 +221,7 @@ export default class Component {
   }
 
   async metrics(inputs: IInputs) {
-    inputs.credentials = await getCredential(inputs.project.access);
+    inputs.credentials = await this.getCredentials(inputs.credentials, inputs.project?.access);
 
     await getImageAndReport(inputs, inputs.credentials.AccountID, 'metrics');
 
@@ -228,7 +231,7 @@ export default class Component {
   }
 
   async info(inputs: IInputs) {
-    inputs.credentials = await getCredential(inputs.project.access);
+    inputs.credentials = await this.getCredentials(inputs.credentials, inputs.project?.access);
 
     await getImageAndReport(inputs, inputs.credentials.AccountID, 'metrics');
 
@@ -238,31 +241,37 @@ export default class Component {
   }
 
   async cp(inputs: IInputs) {
-    const credentials = await getCredential(inputs.project.access);
+    const credentials = await this.getCredentials(inputs.credentials, inputs.project?.access);
     await getImageAndReport(inputs, credentials.AccountID, 'cp');
 
     await NasComponent.cp(inputs.props, _.cloneDeep(inputs));
   }
 
   async ls(inputs: IInputs) {
-    const credentials = await getCredential(inputs.project.access);
+    const credentials = await this.getCredentials(inputs.credentials, inputs.project?.access);
     await getImageAndReport(inputs, credentials.AccountID, 'ls');
 
     await NasComponent.ls(inputs.props, _.cloneDeep(inputs));
   }
 
   async rm(inputs: IInputs) {
-    const credentials = await getCredential(inputs.project.access);
+    const credentials = await this.getCredentials(inputs.credentials, inputs.project?.access);
     await getImageAndReport(inputs, credentials.AccountID, 'rm');
 
     await NasComponent.rm(inputs.props, _.cloneDeep(inputs));
   }
 
   async command(inputs: IInputs) {
-    const credentials = await getCredential(inputs.project.access);
+    const credentials = await this.getCredentials(inputs.credentials, inputs.project?.access);
     await getImageAndReport(inputs, credentials.AccountID, 'command');
 
     await NasComponent.command(inputs.props, _.cloneDeep(inputs));
+  }
+
+  private async getCredentials(credentials: ICredentials, access: string) {
+    await FcEndpoint.getFcEndpoint();
+    logger.debug(`fc endpoint: ${FcEndpoint.endpoint}`);
+    return _.isEmpty(credentials) ? await getCredential(access) : credentials;
   }
 
   private async getDeployType() {

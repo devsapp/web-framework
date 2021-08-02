@@ -45,7 +45,7 @@ WORKDIR /code/${functionName}`);
     throw new Error(`[${projectName}] The length is greater than 64, it is recommended to reduce the length of the service or function name.`);
   }
 
-  const imageId = `${inputs.appName.toLowerCase()}/${projectName}:${qualifier}`;
+  const imageId = `${inputs.appName.toString().toLowerCase()}/${projectName}:${qualifier}`;
   const command = `docker build -t ${imageId} -f ${dockerPath} . `;
 
   const stdio = isDebug ? 'inherit' : 'ignore';

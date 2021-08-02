@@ -12,7 +12,7 @@ export default class AliCloud extends CloudProvider {
   protected namespace;
   constructor(props) {
     super(props);
-    this.namespace = this.inputs.appName.toLowerCase();
+    this.namespace = this.inputs.appName.toString().toLowerCase();
   }
 
   async login() {
@@ -51,17 +51,6 @@ export default class AliCloud extends CloudProvider {
     return imageUrl;
   }
 
-  private async requestApi(path, method = 'GET', body = '{}', option = {}) {
-    const httpMethod = method;
-    const uriPath = path;
-    const queries = {};
-    const headers = {
-      'Content-Type': 'application/json',
-    };
-
-    const apiClient = this.createApiClient();
-    return await apiClient.request(httpMethod, uriPath, queries, body, headers, option);
-  }
   private createApiClient() {
     if (!this.client) {
       const { AccessKeyID, AccessKeySecret } = this.inputs.credentials;
@@ -74,6 +63,35 @@ export default class AliCloud extends CloudProvider {
       });
     }
     return this.client;
+  }
+
+  private async requestApi(path, method = 'GET', body = '{}', option = {}) {
+    const httpMethod = method;
+    const uriPath = path;
+    const queries = {};
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+
+    const apiClient = this.createApiClient();
+    try {
+      return await apiClient.request(httpMethod, uriPath, queries, body, headers, option);
+    } catch (ex) {
+      const {
+        code,
+        statusCode,
+        result,
+      } = ex;
+      const newError = new Error(`Code: ${result.code}, Message: ${result.message}`);
+      newError.name = code || statusCode;
+      newError.stack = ex.stack;
+      // @ts-ignore: 保留原有的参数
+      newError.code = statusCode;
+      // @ts-ignore: 保留原有的参数
+      newError.result = result;
+
+      throw newError;
+    }
   }
 
   private async getTempLoginUserInfo() {
