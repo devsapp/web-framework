@@ -44,7 +44,17 @@ export default class Component {
     await nas.deploy(inputs);
 
     if (src) {
-      inputs.args = `-r ${src} nas:///${inputs.props.nasDir}/${functionName}`;
+      if (!await fse.pathExists(src)) {
+        throw new Error(`Src path: ${src} not exists.`);
+      }
+      if ((await fse.lstat(src)).isFile()) {
+        // mkdir nas:///${inputs.props.nasDir}/${functionName}
+        inputs.args = `mkdir -p nas:///${inputs.props.nasDir}/${functionName}`;
+        await nas.command(inputs);
+        inputs.args = `${src} nas:///${inputs.props.nasDir}/${functionName}/${path.basename(src)}`;
+      } else {
+        inputs.args = `-r ${src} nas:///${inputs.props.nasDir}/${functionName}`;
+      }
       logger.debug(`Cp cmd is: ${inputs.args}`);
       await nas.cp(inputs);
     }
