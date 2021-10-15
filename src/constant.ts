@@ -1,4 +1,8 @@
-export const HELP = [
+export const DEPLOY = [
+  {
+    header: 'Deploy',
+    content: 'Deploy serverless application.',
+  },
   {
     header: 'Options',
     optionList: [
@@ -10,32 +14,29 @@ export const HELP = [
       },
     ],
   },
+];
+
+export const REMOVE = [
   {
-    header: 'Examples',
-    content: [
+    header: 'Remove',
+    content: 'Remove serverless application',
+  },
+  {
+    header: 'Options',
+    optionList: [
       {
-        example: '$ s exec -- deploy',
-      },
-      {
-        example: '$ s exec -- remove',
-      },
-      {
-        example: '$ s exec -- metrics',
-      },
-      {
-        example: '$ s exec -- logs',
+        name: 'help',
+        description: 'Use guide',
+        alias: 'h',
+        type: Boolean,
       },
     ],
   },
 ];
 
-export const CONTEXT = 'WEB-FRAMEWORK';
 export const CONTEXT_NAME = 'web-framework';
 
-export const getAutoName = (accountID: string, region: string, serviceName: string) =>
-  `framework-${accountID}-${region}-${serviceName}`;
-
-export const STORENAME = 'logstore';
+export const GET_IMAGE_URL = 'https://registry.devsapp.cn/registry/image';
 
 export const HTTP_CONFIG = {
   authType: 'anonymous',

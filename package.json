@@ -1,5 +1,6 @@
 {
   "name": "web-framework",
+  "autoInstall": false,
   "main": "./dist/index.js",
   "version": "0.0.30",
   "dependencies": {
@@ -24,18 +25,16 @@
     "@types/node": "14",
     "f2elint": "^0.4.4",
     "jest": "^26.4.0",
-    "rimraf": "^3.0.2",
+    "esbuild": "^0.13.4",
     "ts-jest": "^26.2.0",
     "ts-loader": "^8.0.14",
-    "typescript": "^3.9.7",
-    "webpack": "^4.46.0",
-    "webpack-cli": "^4.4.0"
+    "typescript": "^3.9.7"
   },
   "scripts": {
     "start": "npm run watch",
     "watch": "npx tsc -w -p tsconfig.json",
-    "prebuild": "rimraf dist",
-    "build": "npx tsc -p tsconfig.json",
+    "prebuild": "npm i rimraf --no-save && rimraf dist && rimraf package-lock.json && rimraf node_modules && npm i",
+    "build": "esbuild src/index.ts --bundle --log-level=error --minify --external:@serverless-devs/core --platform=node --target=es2015 --outfile=./dist/index.js",
     "test": "jest",
     "test:cov": "jest --coverage",
     "lint": "f2elint scan",

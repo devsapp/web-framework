@@ -6,13 +6,14 @@ import { ITriggerConfig } from './trigger';
 export interface IInputs {
   props: IProperties;
   project: {
-    component: string;
+    component?: string;
     access: string;
-    projectName: string;
+    projectName?: string;
   };
   credentials?: any;
   appName: string;
   args: string;
+  argsObj?: any;
   path: any;
 }
 
@@ -36,10 +37,11 @@ export interface ICredentials {
 }
 
 export interface IProperties {
+  namespace?: string;
   runtime: string;
   region: string;
   service: IServiceConfig;
   function: IFunctionConfig;
   trigger: ITriggerConfig;
-  customDomains: string;
+  customDomains?: string;
 }
