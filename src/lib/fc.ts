@@ -1,31 +1,11 @@
-import Client from './client';
+import * as core from '@serverless-devs/core';
 import logger from '../common/logger';
 
-export default class Component {
-  static async listVersions(profile, region: string, serviceName: string) {
-    const fc = Client.fc(region, profile);
+export default class FcFunction {
+  static async tryContainerAcceleration(inputs, serviceName, functionName, customContainerConfig) {
+    const fcCommon = await core.loadComponent('devsapp/fc-common');
+    const fc = await fcCommon.makeFcClient(inputs);
 
-    return (await fc.listVersions(serviceName)).data.versions;
-  }
-
-  static async publishVersion(profile, region: string, serviceName: string, description?) {
-    const fc = Client.fc(region, profile);
-
-    return (await fc.publishVersion(serviceName, description)).data;
-  }
-
-  static async deleteVersion(profile, region: string, serviceName: string, versionId) {
-    const fc = Client.fc(region, profile);
-
-    return (await fc.deleteVersion(serviceName, versionId)).data;
-  }
-
-  static async tryContainerAcceleration(profile, region: string, serviceName: string, functionName: string, customContainerConfig) {
-    if (!serviceName || !customContainerConfig) {
-      return;
-    }
-
-    const fc = Client.fc(region, profile);
     try {
       await fc.updateFunction(serviceName, functionName, {
         customContainerConfig: {

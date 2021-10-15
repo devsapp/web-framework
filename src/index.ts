@@ -1,285 +1,258 @@
-/* eslint-disable no-await-in-loop */
-/* eslint-disable max-len */
-import {
-  getCredential,
-  help,
-  commandParse,
-  loadComponent,
-  spinner,
-} from '@serverless-devs/core';
+import * as core from '@serverless-devs/core';
 import _ from 'lodash';
-import { HELP } from './constant';
-import { ICredentials, IInputs, ICommandParse } from './interface/inputs';
-import ToLogs from './lib/transform/to-logs';
-import ToMetrics from './lib/transform/to-metrics';
-import ToFc from './lib/transform/to-fc';
-import ToBuild from './lib/transform/to-build';
-import ToInfo from './lib/transform/to-info';
-
-import FcEndpoint from './lib/fc-endpoint';
-import GenerateDockerfile from './lib/generate-dockerfile';
-import ProviderFactory from './lib/providers/factory';
-import NasComponent from './lib/nas';
-import Fc from './lib/fc';
-import { getImageAndReport, requestDomains } from './lib/utils';
-import Domain from './lib/domain';
+import fse from 'fs-extra';
+import * as constant from './constant';
 import logger from './common/logger';
+import { ICredentials, IInputs } from './interface/inputs';
+import GetCustomContainerImage from './lib/get-custom-container-image';
+import AliCloud from './lib/alicloud';
+import FcFunction from './lib/fc';
+import TransformToFc from './lib/inputs-transform-to-fc';
+import { requestDomains } from './lib/utils';
 
-export default class Component {
-  async publish(inputs) {
-    const apts = {
-      boolean: ['help'],
-      string: ['description'],
-      alias: { help: 'h', description: 'd' },
-    };
-    const comParse: any = commandParse({ args: inputs.args }, apts);
+export default class FcFramework {
+  async deploy(inputs: IInputs) {
+    logger.debug(`inputs.props:: ${JSON.stringify(inputs.props)}`);
+    const {
+      isHelp,
+      credentials,
+      transformToFc,
+      deployType,
+      toFcInputs,
+    } = await this.handlerInputs(inputs, 'deploy');
+    if (isHelp) return;
 
-    const deployType = await this.getDeployType();
-
-    if (deployType !== 'container') {
-      throw new Error('The verison capability currently only supports container.');
+    const src = inputs.props.function?.code?.src;
+    if (!src) {
+      throw new Error('No code package config found');
+    }
+    if (!(await fse.pathExists(src))) {
+      throw new Error(`Address ${src} does not exist`);
     }
 
-    const credentials = await this.getCredentials(inputs.credentials, inputs.project?.access);
-    inputs.credentials = credentials;
-
-    const { region } = inputs.props;
-    const serviceName = inputs.props.service.name;
-
-    let nextQualifier;
-
-    const versions = await Fc.listVersions(credentials, region, serviceName);
-    if (_.isEmpty(versions)) {
-      nextQualifier = 1;
-    } else {
-      nextQualifier = versions.shift().versionId / 1 + 1;
-    }
-    logger.debug(`next qualifier is ${nextQualifier}.`);
-
-    inputs = await getImageAndReport(inputs, credentials.AccountID, 'publish');
-    const cloneInputs: any = _.cloneDeep(inputs);
-    cloneInputs.props = ToFc.transform(cloneInputs.props, deployType);
-
-    const imageId = await GenerateDockerfile(inputs, nextQualifier);
-
-    const provider = ProviderFactory.getProvider(inputs);
-    await provider.login();
-    cloneInputs.props.function.customContainerConfig.image = await provider.publish(imageId, nextQualifier);
-    logger.debug(`custom container config image is ${cloneInputs.props.function.customContainerConfig.image}`);
-    cloneInputs.props.customDomains = await Domain.get(inputs);
-    await (await this.getFc()).deploy(cloneInputs);
-
-    return await Fc.publishVersion(credentials, region, serviceName, comParse.data?.description);
-  }
-
-  async unpublish(inputs) {
-    const apts = {
-      boolean: ['help'],
-      string: ['version'],
-      alias: { help: 'h', version: 'v' },
-    };
-    const comParse: any = commandParse({ args: inputs.args }, apts);
-
-    const credentials = await this.getCredentials(inputs.credentials, inputs.project?.access);
-    inputs.credentials = credentials;
-
-    const { region } = inputs.props;
-    const serviceName = inputs.props.service.name;
-    logger.info(`unpublish version ${region}/${serviceName}.${comParse.data?.version}`);
-    return await Fc.deleteVersion(credentials, region, serviceName, comParse.data?.version);
-  }
-
-  async deploy(inputs) {
-    const apts = {
-      boolean: ['help', 'assumeYes'],
-      alias: { help: 'h', assumeYes: 'y' },
-    };
-    const comParse: any = commandParse({ args: inputs.args }, apts);
-    if (comParse.data?.help) {
-      help(HELP);
-      return;
-    }
-
-    const credentials = await this.getCredentials(inputs.credentials, inputs.project?.access);
-    inputs.credentials = credentials;
-
-    inputs = await getImageAndReport(inputs, credentials.AccountID, 'deploy');
-    const cloneInputs: any = _.cloneDeep(inputs);
-
-    const deployType = await this.getDeployType();
-    cloneInputs.props = ToFc.transform(cloneInputs.props, deployType);
-
-    // @ts-ignore
-    delete cloneInputs.Properties;
+    const baseDir = inputs.path?.configPath;
+    const serviceName = toFcInputs.props.service.name;
+    const functionName = toFcInputs.props.function.name;
+    const getCustomContainerImage = new GetCustomContainerImage();
+    let imageId = await getCustomContainerImage.getCustomContainerImage(inputs.props);
 
     if (deployType === 'container') {
       const qualifier = `LATEST-${new Date().getTime()}`;
-      const imageId = await GenerateDockerfile(inputs, qualifier);
+      const namespace = this.getNamespace(inputs);
+      const projectName = `${serviceName}.${functionName}`.toLowerCase();
+      logger.debug(`Get namespace is ${namespace}, qualifier is ${qualifier}`);
 
-      const provider = ProviderFactory.getProvider(inputs);
+      // 优先尝试检测阿里云的容器镜像服务的命名空间和仓库是否可用
+      const provider = new AliCloud(inputs.props.region, namespace, credentials);
       await provider.login();
-      cloneInputs.props.function.customContainerConfig.image = await provider.publish(imageId, qualifier);
+      await provider.init(projectName);
+      // 重新 build 一个镜像
+      imageId = await getCustomContainerImage.generateCustomContainerImage(inputs.props, imageId, qualifier, namespace, baseDir);
     }
+    logger.debug(`Get imageId:: ${imageId}`);
+    toFcInputs.props.function.customContainerConfig.image = imageId;
 
-    cloneInputs.props.customDomains = await Domain.get(inputs);
-    logger.debug(`transfrom props: ${JSON.stringify(cloneInputs.props, null, '  ')}`);
+    const fcConfig = await this.fcMethodCaller(toFcInputs, 'deploy');
 
-    const fcConfig = await (await this.getFc()).deploy(cloneInputs);
-
-    const properties = inputs.props;
     if (deployType === 'nas') {
-      await NasComponent.init(properties, _.cloneDeep(inputs));
-      await NasComponent.remove(properties, _.cloneDeep(inputs));
+      toFcInputs.args = await transformToFc.getDeployNasArgs();
+      await this.fcMethodCaller(toFcInputs, 'nas');
     }
-
-    const vm = spinner('Try container acceleration');
-    const flag = await Fc.tryContainerAcceleration(credentials, fcConfig.region, fcConfig.service.name, fcConfig.function.name, fcConfig.function.customContainerConfig);
-
+    const tryContainerAccelerationVM = core.spinner('Try container acceleration');
+    const flag = await FcFunction.tryContainerAcceleration(inputs, serviceName, functionName, toFcInputs.props.function.customContainerConfig);
+    const customDomains = fcConfig.url?.custom_domain.map(({ domain }) => domain);
     if (fcConfig.customDomains && fcConfig.customDomains[0].domainName) {
-      await requestDomains(fcConfig.customDomains[0].domainName);
+      await requestDomains(customDomains[0]);
     }
 
-    if (flag) {
-      vm.succeed();
-    } else {
-      vm.fail();
-    }
+    flag ? tryContainerAccelerationVM.succeed() : tryContainerAccelerationVM.fail();
 
     // 返回结果
     return {
-      region: properties.region,
-      serviceName: fcConfig.service.name,
-      functionName: fcConfig.function.name,
-      customDomains: fcConfig.customDomains?.map(({ domainName }) => domainName),
+      region: fcConfig.region,
+      serviceName,
+      functionName,
+      customDomains,
     };
   }
 
-  async remove(inputs) {
-    const apts = {
-      boolean: ['help', 'assumeYes'],
-      alias: { help: 'h', assumeYes: 'y' },
-    };
-    const comParse: ICommandParse = commandParse({ args: inputs.args }, apts);
-    if (comParse.data?.help) {
-      help(HELP);
-      return;
-    }
-    const cloneInputs = _.cloneDeep(inputs);
-    // @ts-ignore
-    delete cloneInputs.Properties;
+  async remove(inputs: IInputs) {
+    const {
+      isHelp,
+      toFcInputs,
+    } = await this.handlerInputs(inputs, 'remove');
+    if (isHelp) return;
 
-    cloneInputs.credentials = await this.getCredentials(inputs.credentials, inputs.project?.access);
-    await getImageAndReport(cloneInputs, cloneInputs.credentials.AccountID, 'build');
+    const regionId = toFcInputs.props.region;
+    const serviceName = toFcInputs.props.service.name;
+    const nasComponent = await core.loadComponent('devsapp/nas@dev');
+    await nasComponent.removeHelperService({ ...toFcInputs, props: { regionId, serviceName } });
 
-    const deployType = await this.getDeployType();
-    cloneInputs.props = ToFc.transform(cloneInputs.props, deployType);
-
-    cloneInputs.props.customDomains = await Domain.get(inputs);
-    logger.debug(`transfrom props: ${JSON.stringify(cloneInputs.props.customDomains)}`);
-    cloneInputs.args = 'service';
-
-    const { region } = inputs.props;
-    const serviceName = inputs.props.service.name;
-    const versions = await Fc.listVersions(cloneInputs.credentials, region, serviceName);
-    for (const { versionId } of versions) {
-      await this.unpublish({
-        project: inputs.project,
-        args: `--version ${versionId}`,
-        props: {
-          region,
-          service: { name: serviceName },
-        },
-      });
-    }
-
-    return (await this.getFc()).remove(cloneInputs);
-  }
-
-  async build(inputs) {
-    inputs.credentials = await this.getCredentials(inputs.credentials, inputs.project?.access);
-    await getImageAndReport(inputs, inputs.credentials.AccountID, 'build');
-
-    const builds = await loadComponent('devsapp/fc-build');
-    inputs.project.component = 'fc-build';
-    inputs.props = ToBuild.transfromInputs(inputs.props);
-
-    await builds.build(inputs);
+    return await this.fcMethodCaller(toFcInputs, 'remove');
   }
 
   async logs(inputs: IInputs) {
-    if (!inputs.props.service?.logConfig) {
-      throw new Error('To use this function, you need to configure the log function in the service, please refer to https://github.com/devsapp/web-framework/blob/master/readme.md#service');
-    }
+    const {
+      isHelp,
+      toFcInputs,
+    } = await this.handlerInputs(inputs, 'logs');
+    if (isHelp) return;
 
-    inputs.credentials = await this.getCredentials(inputs.credentials, inputs.project?.access);
-    await getImageAndReport(inputs, inputs.credentials.AccountID, 'logs');
+    return await this.fcMethodCaller(toFcInputs, 'logs');
+  }
 
-    const inputsLogs = await ToLogs.transform(_.cloneDeep(inputs));
-    const logs = await loadComponent('devsapp/logs');
+  async build(inputs: IInputs) {
+    const {
+      isHelp,
+      toFcInputs,
+    } = await this.handlerInputs(inputs, 'logs');
+    if (isHelp) return;
 
-    await logs.logs(inputsLogs);
+    toFcInputs.props.function.runtime = inputs.props.runtime || 'custom';
+    delete toFcInputs.props.function.customContainerConfig;
+
+    return await this.fcMethodCaller(toFcInputs, 'build');
   }
 
   async metrics(inputs: IInputs) {
-    inputs.credentials = await this.getCredentials(inputs.credentials, inputs.project?.access);
+    const {
+      isHelp,
+      toFcInputs,
+    } = await this.handlerInputs(inputs, 'metrics');
+    if (isHelp) return;
 
-    await getImageAndReport(inputs, inputs.credentials.AccountID, 'metrics');
-
-    const inputsMetrics = await ToMetrics.transform(_.cloneDeep(inputs));
-    const metrics = await loadComponent('devsapp/fc-metrics');
-    await metrics.metrics(inputsMetrics);
+    return await this.fcMethodCaller(toFcInputs, 'metrics');
   }
 
   async info(inputs: IInputs) {
-    inputs.credentials = await this.getCredentials(inputs.credentials, inputs.project?.access);
+    const {
+      isHelp,
+      toFcInputs,
+    } = await this.handlerInputs(inputs, 'info');
+    if (isHelp) return;
 
-    await getImageAndReport(inputs, inputs.credentials.AccountID, 'metrics');
-
-    const inputsInfo = await ToInfo.transform(_.cloneDeep(inputs));
-    const info = await loadComponent('devsapp/fc-info');
-    return await info.info(inputsInfo);
+    return await this.fcMethodCaller(toFcInputs, 'info');
   }
 
-  async cp(inputs: IInputs) {
-    const credentials = await this.getCredentials(inputs.credentials, inputs.project?.access);
-    await getImageAndReport(inputs, credentials.AccountID, 'cp');
+  async nas(inputs: IInputs) {
+    const {
+      isHelp,
+      toFcInputs,
+    } = await this.handlerInputs(inputs, 'nas');
+    if (isHelp) return;
 
-    await NasComponent.cp(inputs.props, _.cloneDeep(inputs));
+    toFcInputs.argsObj = inputs.argsObj;
+    return await this.fcMethodCaller(toFcInputs, 'nas');
   }
 
-  async ls(inputs: IInputs) {
-    const credentials = await this.getCredentials(inputs.credentials, inputs.project?.access);
-    await getImageAndReport(inputs, credentials.AccountID, 'ls');
+  async alias(inputs: IInputs) {
+    const {
+      isHelp,
+      toFcInputs,
+    } = await this.handlerInputs(inputs, 'alias');
+    if (isHelp) return;
 
-    await NasComponent.ls(inputs.props, _.cloneDeep(inputs));
+    toFcInputs.argsObj = inputs.argsObj;
+    return await this.fcMethodCaller(toFcInputs, 'alias');
   }
 
-  async rm(inputs: IInputs) {
-    const credentials = await this.getCredentials(inputs.credentials, inputs.project?.access);
-    await getImageAndReport(inputs, credentials.AccountID, 'rm');
+  async version(inputs: IInputs) {
+    const {
+      isHelp,
+      toFcInputs,
+    } = await this.handlerInputs(inputs, 'version');
+    if (isHelp) return;
 
-    await NasComponent.rm(inputs.props, _.cloneDeep(inputs));
+    toFcInputs.argsObj = inputs.argsObj;
+    return await this.fcMethodCaller(toFcInputs, 'version');
   }
 
-  async command(inputs: IInputs) {
-    const credentials = await this.getCredentials(inputs.credentials, inputs.project?.access);
-    await getImageAndReport(inputs, credentials.AccountID, 'command');
+  async provision(inputs: IInputs) {
+    const {
+      isHelp,
+      toFcInputs,
+    } = await this.handlerInputs(inputs, 'provision');
+    if (isHelp) return;
 
-    await NasComponent.command(inputs.props, _.cloneDeep(inputs));
+    toFcInputs.argsObj = inputs.argsObj;
+    return await this.fcMethodCaller(toFcInputs, 'provision');
   }
 
-  private async getCredentials(credentials: ICredentials, access: string) {
-    await FcEndpoint.getFcEndpoint();
-    logger.debug(`fc endpoint: ${FcEndpoint.endpoint}`);
-    return _.isEmpty(credentials) ? await getCredential(access) : credentials;
+  async onDemand(inputs: IInputs) {
+    const {
+      isHelp,
+      toFcInputs,
+    } = await this.handlerInputs(inputs, 'onDemand');
+    if (isHelp) return;
+
+    toFcInputs.argsObj = inputs.argsObj;
+    return await this.fcMethodCaller(toFcInputs, 'onDemand');
+  }
+
+  private async handlerInputs(inputs, methodName) {
+    const apts = { boolean: ['help'], alias: { help: 'h' } };
+    const comParse: any = core.commandParse({ args: inputs.args }, apts);
+    if (comParse.data?.help) {
+      if (['deploy', 'remove'].includes(methodName)) {
+        core.help(constant[methodName.toLocaleUpperCase()]);
+      } else {
+        await this.fcMethodCaller(inputs, methodName);
+      }
+      return { isHelp: true };
+    }
+
+    const credentials = await this.getCredentials(inputs);
+    this.reportComponent('methodName', credentials.AccountID);
+
+    const deployType = await this.getDeployType();
+    const transformToFc = new TransformToFc(_.cloneDeep(inputs), credentials);
+    const toFcInputs = transformToFc.transform(methodName, deployType);
+
+    return {
+      credentials,
+      deployType,
+      transformToFc,
+      toFcInputs,
+    };
+  }
+
+  private getNamespace(inputs: IInputs) {
+    if (!_.isEmpty(inputs.props.namespace)) {
+      return inputs.props.namespace.toLowerCase();
+    }
+    if (!_.isEmpty(inputs.appName)) {
+      return inputs.appName.toLowerCase();
+    }
+    throw new Error('Unable to determine the namespace, please configure the namespace under the props parameter');
+  }
+
+  private async getCredentials(inputs: IInputs): Promise<ICredentials> {
+    const fcCommon = await core.loadComponent('devsapp/fc-common');
+    const { access, credentials } = await fcCommon.getCredentials(inputs);
+    if (!_.isEmpty(access)) {
+      if (_.isEmpty(inputs.project)) {
+        // eslint-disable-next-line
+        inputs.project = { access };
+      } else {
+        // eslint-disable-next-line
+        inputs.project.access = access;
+      }
+    }
+
+    return credentials;
   }
 
   private async getDeployType() {
-    const fcDefault = await loadComponent('devsapp/fc-default');
+    const fcDefault = await core.loadComponent('devsapp/fc-default');
     return await fcDefault.get({ args: 'web-framework' });
   }
 
-  private async getFc() {
-    return await loadComponent('devsapp/fc-deploy');
+  private async fcMethodCaller(toFcInputs, methodName: string) {
+    const fcComponent = await core.loadComponent('/Users/wb447188/Desktop/new-repo/fc');
+    return await fcComponent[methodName](_.cloneDeep(toFcInputs));
+  }
+
+  private async reportComponent(command: string, uid?: string) {
+    core.reportComponent(constant.CONTEXT_NAME, { command, uid });
   }
 }
