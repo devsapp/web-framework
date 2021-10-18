@@ -6,7 +6,8 @@ import logger from '../common/logger';
 
 export const isDebug = process.env?.temp_params?.includes('--debug');
 
-export async function getSrc(code, serviceName: string, functionName: string, baseDir: string = process.cwd()): Promise<string> {
+export async function getSrc(code, serviceName: string, functionName: string, sYaml: string): Promise<string> {
+  const baseDir = sYaml ? path.dirname(sYaml) : process.cwd();
   const buildCodeUri = path.join(
     baseDir,
     '.s',
