@@ -6,31 +6,13 @@ services:
   framework-test: #  服务名称
     component: ${path(..)}  # 组件名称
     props:
+      namespace: fc-demo2
       runtime: nodejs12
       region: cn-shenzhen
       service:
-        name: A-express
+        name: express-test-container
         # logConfig: auto
         description: 测试环节
-        role:
-          name: framework-1899690531354629-cn-hongkong-express-test
-          statement:
-            - Action: sts:AssumeRole
-              Effect: Allow
-              Principal:
-                Service:
-                  - fc.aliyuncs.com
-          policys:
-            - policyName: AliyunContainerRegistryReadOnlyAccess
-              policyType: System
-            - policyName: AliyunECSNetworkInterfaceManagementAccess
-              policyType: System
-            - policyName: web-framework-policy-test
-              statement:
-                - Effect: Deny
-                  Action:
-                    - sts:AssumeRole
-                  Resource: '*'
       function:
         name: A-express
         description: 测试环节
@@ -44,9 +26,6 @@ services:
           excludes:
             - package-lock.json
       trigger:
-        # name: def
-        # function: test
-        # service: test-wss-web
         type: http
         config:
           authType: anonymous
@@ -59,11 +38,3 @@ services:
           protocol: HTTP
           routeConfigs:
             - path: '/*'
-        # - domainName: test.shoushuai.top
-        #   protocol: HTTP,HTTPS
-        #   routeConfigs:
-        #     - path: '/'
-          # certConfig:
-          #   certName: test
-          #   certificate: ./certConfigCutom/cate.pem
-          #   privateKey: ./certConfigCutom/key.pem

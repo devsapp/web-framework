@@ -85,7 +85,7 @@ export default class FcFramework {
 
     const regionId = toFcInputs.props.region;
     const serviceName = toFcInputs.props.service.name;
-    const nasComponent = await core.loadComponent('devsapp/nas@dev');
+    const nasComponent = await core.loadComponent('devsapp/nas');
     await nasComponent.removeHelperService({ ...toFcInputs, props: { regionId, serviceName } });
 
     return await this.fcMethodCaller(toFcInputs, 'remove');
@@ -248,7 +248,7 @@ export default class FcFramework {
   }
 
   private async fcMethodCaller(toFcInputs, methodName: string) {
-    const fcComponent = await core.loadComponent('/Users/wb447188/Desktop/new-repo/fc');
+    const fcComponent = await core.loadComponent('devsapp/fc');
     return await fcComponent[methodName](_.cloneDeep(toFcInputs));
   }
 

@@ -120,6 +120,7 @@ export default class ToFc {
       memorySize: 1024,
       handler: 'index.handler',
       customContainerConfig: {},
+      codeUri: functionConfig?.code?.src,
     };
     return _.merge(defaultConfig, functionConfig, { runtime: 'custom-container' });
   }

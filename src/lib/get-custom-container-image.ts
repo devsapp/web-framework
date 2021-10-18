@@ -6,6 +6,7 @@ import { IProperties } from '../interface/inputs';
 import { GET_IMAGE_URL } from '../constant';
 import { isDebug, getSrc, checkUriIsFile } from './utils';
 import logger from '../common/logger';
+import path from 'path';
 
 export default class GetCustomContainerImage {
   async getCustomContainerImage(props: IProperties): Promise<string> {
@@ -69,7 +70,7 @@ export default class GetCustomContainerImage {
       dockerPath = '.Dockerfile';
       await fse.writeFileSync(dockerPath, `FROM ${image}
   RUN mkdir /code
-  ADD ${codeUri} /code/${functionName}
+  ADD ${path.relative(process.cwd(), codeUri)} /code/${functionName}
   RUN chmod 755 -R /code
   WORKDIR /code/${functionName}`);
     }
@@ -77,7 +78,7 @@ export default class GetCustomContainerImage {
     if (!(await fse.pathExists('.dockerignore'))) {
       deleteIgnore = true;
       const exclude = code.excludes || [];
-      exclude.unshift('.s/');
+      exclude.unshift('!.s');
       await fse.writeFileSync('.dockerignore', exclude.join(codeUri ? `\n${codeUri}/` : '\n'));
     }
 
