@@ -69,10 +69,10 @@ export default class GetCustomContainerImage {
     if (!await checkUriIsFile(dockerPath)) {
       dockerPath = '.Dockerfile';
       await fse.writeFileSync(dockerPath, `FROM ${image}
-  RUN mkdir /code
-  ADD ${path.relative(process.cwd(), codeUri)} /code/${functionName}
-  RUN chmod 755 -R /code
-  WORKDIR /code/${functionName}`);
+RUN mkdir /code
+ADD ${path.relative(process.cwd(), codeUri) || './'} /code/${functionName}
+RUN chmod 755 -R /code
+WORKDIR /code/${functionName}`);
     }
 
     if (!(await fse.pathExists('.dockerignore'))) {
