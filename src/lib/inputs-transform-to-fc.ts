@@ -45,19 +45,17 @@ export default class ToFc {
 
     const codeUri = await getSrc(code, name, functionName, this.path?.configPath);
 
-    let args = '';
+    // 如果是文件，则需要先创建目录，然后再上传文件
     if (await checkUriIsFile(codeUri)) {
       const basename = path.basename(codeUri);
       const fcTargetDir = fcDir.endsWith('/') ? `${fcDir}${basename}` : `${fcDir}/${basename}`;
-      args += `upload ${codeUri} ${fcTargetDir}`;
-    } else {
-      args += `upload -r ${codeUri} ${fcDir}`;
+      return {
+        args: `upload ${codeUri} ${fcTargetDir}`,
+        mkdirArgs: `command mkdir -p /${fcDir}`,
+      };
     }
-    logger.log(`Reminder nas upload instruction: ${args}`);
-
-    // 文件夹：upload -r ${codeUri} ${fcDir}
-    // 文件：upload -r ${codeUri} ${fcDir}
-    return args;
+    // 如果是文件夹，则可以直接上传
+    return { args: `upload -r ${codeUri} ${fcDir}` };
   }
 
   transform(command: string, deployType?: string): any {

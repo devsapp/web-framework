@@ -55,7 +55,18 @@ export default class FcFramework {
     const fcConfig = await this.fcMethodCaller(toFcInputs, 'deploy');
 
     if (deployType === 'nas') {
-      toFcInputs.args = await transformToFc.getDeployNasArgs();
+      const { args, mkdirArgs } = await transformToFc.getDeployNasArgs();
+      logger.log(`Reminder nas upload instruction: ${args}`);
+      if (mkdirArgs) {
+        logger.debug(`mkdirArgs: ${mkdirArgs}`);
+        toFcInputs.args = mkdirArgs;
+        try {
+          await this.fcMethodCaller(toFcInputs, 'nas');
+        } catch (e) {
+          logger.debug(e.toString());
+        }
+      }
+      toFcInputs.args = args;
       await this.fcMethodCaller(toFcInputs, 'nas');
     }
     const tryContainerAccelerationVM = core.spinner('Try container acceleration');
