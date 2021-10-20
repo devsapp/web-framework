@@ -2,7 +2,7 @@
   "name": "web-framework",
   "autoInstall": false,
   "main": "./dist/index.js",
-  "version": "0.0.30",
+  "version": "0.1.3",
   "dependencies": {
     "@alicloud/fc2": "^2.2.2",
     "@alicloud/pop-core": "^1.7.10",
