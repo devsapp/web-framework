@@ -55,7 +55,7 @@ export default class ToFc {
       };
     }
     // 如果是文件夹，则可以直接上传
-    return { args: `upload -r ${codeUri} ${fcDir}` };
+    return { args: `upload -r ${codeUri.endsWith('/') ? codeUri : `${codeUri}/`} ${fcDir}` };
   }
 
   transform(command: string, deployType?: string): any {
